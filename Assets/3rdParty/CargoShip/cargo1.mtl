@@ -1,0 +1,24 @@
+# Auto-generated MTL for Cargo Ship (hungry_drifter, CC-BY)
+newmtl 1001
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+Ks 0.5 0.5 0.5
+Ns 50
+map_Kd cargo_fin1_lp_1001_BaseColor.tga
+map_Bump cargo_fin1_lp_1001_Normal.tga
+
+newmtl 1002
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+Ks 0.5 0.5 0.5
+Ns 50
+map_Kd cargo_fin1_lp_1002_BaseColor.tga
+map_Bump cargo_fin1_lp_1002_Normal.tga
+
+newmtl 1003
+Ka 1.0 1.0 1.0
+Kd 1.0 1.0 1.0
+Ks 0.5 0.5 0.5
+Ns 50
+map_Kd cargo_fin1_lp_1003_BaseColor.tga
+map_Bump cargo_fin1_lp_1003_Normal.tga
