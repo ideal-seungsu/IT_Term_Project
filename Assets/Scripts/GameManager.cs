@@ -13,10 +13,22 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float totalTime = 120f;
     [SerializeField] private int crashLimit = 1;
 
+    // ★ 점수 설정 - 인스펙터에서 밸런싱 가능
+    [Header("Scoring Settings")]
+    [SerializeField] private int baseScore = 1000;            // 시작 점수
+    [SerializeField] private int collisionPenalty = 100;      // 충돌 1회당 차감
+    [SerializeField] private int timeBonusPerSecond = 10;     // 남은 1초당 보너스 점수
+
     [Header("Boat Skin Settings")]
     [SerializeField] private GameObject[] boatModels;
-    // ★ 씬 전환 시 기억하기 위해 static(정적 변수)으로 변경하여 보존합니다.
     private static int currentBoatIndex = 0;
+
+    // ★ 씬이 넘어가도 유지되어야 하는 데이터들 (static)
+    private static int score = 1000;
+    private static int totalCollisionCount = 0;
+    private static int totalTimeBonus = 0;        // ★ 신규: 누적 시간 보너스 (스테이지 클리어 시 합산)
+    private static bool isRestarting = false;     // 리스타트 버튼 진행 중인지 기억하는 플래그
+    private static bool isFirstStart = true;      // ★ 신규: 게임 첫 시작인지 판별
 
     [Header("UI Panels")]
     [SerializeField] private GameObject startPanel;
@@ -37,24 +49,14 @@ public class GameManager : MonoBehaviour
     [SerializeField] private Transform goal;
 
     private float remainingTime;
-    private int score = 1000;
-    private int collisionCount = 0;
+    private int collisionCount = 0; // 현재 스테이지 전용 충돌 횟수
 
-    [SerializeField] private bool startImmediately = false; // 켜면 시작 화면 없이 바로 게임 시작
+    [SerializeField] private bool startImmediately = false;
 
     void Awake()
     {
-        // ★ [핵심 고침] 씬이 넘어가도 데이터가 파괴되지 않도록 뼈대를 수정합니다.
-        if (Instance != null && Instance != this)
-        {
-            // 새로 로드된 씬의 게임매니저는 파괴하되, 그 씬에 배치된 새로운 배와 UI 참조를 기존 매니저에게 토스합니다.
-            Instance.RefreshReferencesInNewScene(this);
-            Destroy(gameObject);
-            return;
-        }
-
+        // 씬마다 새 GameManager가 Instance로 등록 (DontDestroyOnLoad 미사용)
         Instance = this;
-        DontDestroyOnLoad(gameObject); // 이 오브젝트를 파괴되지 않는 무적 방패로 지정
     }
 
     void Start()
@@ -62,15 +64,32 @@ public class GameManager : MonoBehaviour
         InitStage();
     }
 
-    // ★ [새로 추가] 스테이지가 바뀔 때마다 실행될 초기화 함수
     private void InitStage()
     {
         remainingTime = totalTime;
         UpdateBoatSkin();
 
-        // 1스테이지(Main 씬, buildIndex 0)가 아니거나 즉시 시작이 켜져 있다면 대기 없이 바로 시작
-        if (startImmediately || SceneManager.GetActiveScene().buildIndex > 0)
+        // 완전 처음 시작(메인 씬에서 리스타트도 아님)일 때만 모든 점수 초기화
+        if (!isRestarting && isFirstStart && SceneManager.GetActiveScene().buildIndex == 0)
         {
+            score = baseScore;
+            totalCollisionCount = 0;
+            totalTimeBonus = 0;
+            isFirstStart = false;
+        }
+
+        // 리스타트면 점수 다시 baseScore로
+        if (isRestarting)
+        {
+            score = baseScore;
+            totalCollisionCount = 0;
+            totalTimeBonus = 0;
+        }
+
+        // 리스타트/즉시시작/스테이지2 이상이면 시작 화면 스킵
+        if (isRestarting || startImmediately || SceneManager.GetActiveScene().buildIndex > 0)
+        {
+            isRestarting = false;
             StartGame();
         }
         else
@@ -78,30 +97,6 @@ public class GameManager : MonoBehaviour
             SetState(GameState.Ready);
             ShowStartPanel();
         }
-    }
-
-    // ★ [새로 추가] 다음 스테이지로 넘어갔을 때 새 씬의 UI와 배 오브젝트들을 다시 매핑해주는 무적의 방어 코드
-    public void RefreshReferencesInNewScene(GameManager newSceneManager)
-    {
-        this.startPanel = newSceneManager.startPanel;
-        this.skinShopPanel = newSceneManager.skinShopPanel;
-        this.winPanel = newSceneManager.winPanel;
-        this.losePanel = newSceneManager.losePanel;
-
-        this.distanceText = newSceneManager.distanceText;
-        this.timerText = newSceneManager.timerText;
-        this.scoreText = newSceneManager.scoreText;
-        this.collisionText = newSceneManager.collisionText;
-        this.winScoreText = newSceneManager.winScoreText;
-        this.loseScoreText = newSceneManager.loseScoreText;
-
-        this.player = newSceneManager.player;
-        this.goal = newSceneManager.goal;
-        this.boatModels = newSceneManager.boatModels;
-        this.startImmediately = newSceneManager.startImmediately;
-
-        // 새 오브젝트들 기준으로 배 스킨 세팅 재시동
-        InitStage();
     }
 
     void Update()
@@ -151,17 +146,22 @@ public class GameManager : MonoBehaviour
     public void StartGame()
     {
         Time.timeScale = 1f;
-        score = 1000;
-        collisionCount = 0;
+        collisionCount = 0;          // 스테이지별 충돌 횟수만 리셋
         remainingTime = totalTime;
         SetState(GameState.Playing);
         HideAllPanels();
     }
 
+    // ★ 스테이지 클리어 시점에 시간 보너스 누적
     public void Win()
     {
         if (CurrentState != GameState.Playing) return;
         SetState(GameState.Win);
+
+        // 이번 스테이지의 시간 보너스 계산해서 누적
+        int stageTimeBonus = Mathf.RoundToInt(remainingTime * timeBonusPerSecond);
+        totalTimeBonus += stageTimeBonus;
+
         StartCoroutine(AutoNextStageRoutine());
     }
 
@@ -172,20 +172,52 @@ public class GameManager : MonoBehaviour
 
         if (nextSceneIndex < SceneManager.sceneCountInBuildSettings)
         {
+            // 다음 스테이지가 있으면 그냥 넘어감
             SceneManager.LoadScene(nextSceneIndex);
         }
         else
         {
-            Debug.Log("모든 스테이지 클리어! 메인 화면으로 돌아갑니다.");
-            SceneManager.LoadScene(0);
+            // ★ 모든 스테이지 클리어! 최종 결과 표시
+            Debug.Log("모든 스테이지 클리어!");
+
+            int finalScore = score + totalTimeBonus;
+
+            if (winPanel != null)
+            {
+                winPanel.SetActive(true);
+                Time.timeScale = 0f;
+            }
+
+            if (winScoreText != null)
+            {
+                winScoreText.text =
+                    $"CLEAR!\n" +
+                    $"Base Score: {score}\n" +
+                    $"Time Bonus: +{totalTimeBonus}\n" +
+                    $"Total Collisions: {totalCollisionCount}\n" +
+                    $"Final Score: {finalScore}";
+            }
         }
     }
 
+    // ★ Lose 시 점수와 통계 표시 (기존 버그 해결)
     public void Lose()
     {
         if (CurrentState != GameState.Playing) return;
         SetState(GameState.Lose);
+
+        int timeUsed = (int)(totalTime - remainingTime);
+
         if (losePanel != null) losePanel.SetActive(true);
+        if (loseScoreText != null)
+        {
+            loseScoreText.text =
+                $"GAME OVER\n" +
+                $"Score: {score}\n" +
+                $"Total Collisions: {totalCollisionCount}\n" +
+                $"Time Used: {timeUsed}s";
+        }
+
         Time.timeScale = 0f;
     }
 
@@ -193,19 +225,19 @@ public class GameManager : MonoBehaviour
     {
         if (CurrentState != GameState.Playing) return;
         collisionCount++;
-        score = Mathf.Max(0, score - 100);
+        totalCollisionCount++;
+        score = Mathf.Max(0, score - collisionPenalty);
         if (collisionCount >= crashLimit) Lose();
     }
 
     private void UpdateUI()
     {
-        // Null 검사를 추가하여 씬 전환 직후 미세한 딜레이 타이밍 에러를 완전 방지합니다.
         if (player == null || goal == null) return;
 
         if (distanceText != null) distanceText.text = $"Distance: {Vector3.Distance(player.position, goal.position):F1}m";
         if (timerText != null) timerText.text = $"Time: {(int)remainingTime / 60:00}:{(int)remainingTime % 60:00}";
         if (scoreText != null) scoreText.text = $"Score: {score}";
-        if (collisionText != null) collisionText.text = $"Collisions: {collisionCount}";
+        if (collisionText != null) collisionText.text = $"Total Collisions: {totalCollisionCount}";
     }
 
     private void ShowStartPanel()
@@ -225,7 +257,8 @@ public class GameManager : MonoBehaviour
     public void RestartGame()
     {
         Time.timeScale = 1f;
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        isRestarting = true;
+        SceneManager.LoadScene(0); // ★ 메인(첫 스테이지)으로 돌아가게 변경
     }
 
     private void SetState(GameState newState) { CurrentState = newState; }
