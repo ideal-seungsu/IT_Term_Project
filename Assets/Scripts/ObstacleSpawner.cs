@@ -4,8 +4,8 @@ using UnityEngine;
 [System.Serializable]
 public class StageSetting
 {
-    public string stageName;               // 예: "Stage 1", "Stage 2"
-    public float spawnInterval;            // 스폰 주기 (짧을수록 자주 나옴 = 어려움)
+    public string stageName;               
+    public float spawnInterval;            // 스폰 주기
     public GameObject[] allowedObstacles;  // 이 스테이지에서 등장할 수 있는 장애물들
 }
 
@@ -13,7 +13,7 @@ public class ObstacleSpawner : MonoBehaviour
 {
     [Header("스테이지 세팅")]
     public StageSetting[] stages;          // 1, 2, 3 스테이지 설정을 넣을 배열
-    public int currentStageIndex = 0;      // 현재 스테이지 인덱스 (0 = 1스테이지)
+    public int currentStageIndex = 0;      // 현재 스테이지 인덱스
 
     [Header("스폰 위치 설정")]
     public Transform player;

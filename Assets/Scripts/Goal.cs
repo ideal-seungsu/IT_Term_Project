@@ -1,9 +1,9 @@
 using UnityEngine;
 
-/// <summary>
+
 /// 목적지(빛나는 원형 포털) 트리거. Player(보트)가 도달하면 GameManager.Win() 호출.
 /// BoatProbes 처럼 root 에만 Player tag 가 있는 보트도 잡도록 attachedRigidbody.gameObject 의 tag 를 확인.
-/// </summary>
+
 public class Goal : MonoBehaviour
 {
     void OnTriggerEnter(Collider other)

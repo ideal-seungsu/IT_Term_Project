@@ -62,7 +62,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // 태풍(Obstacle) 및 결승선(Finish) 처리
+    // 태풍 및 결승선 처리
     private void OnTriggerEnter(Collider other)
     {
         if (other.CompareTag("Obstacle"))

@@ -10,7 +10,7 @@ public class Obstacle : MonoBehaviour
     public float moveSpeed = 5f;
     public float floatAmplitude = 0.5f; // 출렁이는 높이
     public float floatFrequency = 1f;   // 출렁이는 속도
-    public float patrolDistance = 50f;  // ★ 새로 추가된 순찰 이동 반경!
+    public float patrolDistance = 50f;  // 순찰 이동 반경
 
     private Transform playerTransform;
     private Vector3 startPos;
@@ -45,7 +45,7 @@ public class Obstacle : MonoBehaviour
                 break;
 
             case ObstacleType.Patrol:
-                // ★ 5f로 고정되어 있던 부분을 patrolDistance 변수로 교체!
+                // 5f로 고정되어 있던 부분을 patrolDistance 변수로 교체
                 float patrolX = startPos.x + Mathf.Sin(Time.time * moveSpeed) * patrolDistance;
                 transform.position = new Vector3(patrolX, transform.position.y, transform.position.z);
                 break;
@@ -65,4 +65,4 @@ public class Obstacle : MonoBehaviour
             GameManager.Instance.RegisterCollision();
         }
     }
-} // ★ 이 마지막 중괄호가 무사히 들어가야 파업이 끝납니다!
+}
